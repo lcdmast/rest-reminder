@@ -10,7 +10,7 @@ PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 
 build() {
   if [[ ! -x "$BIN" || "$SRC" -nt "$BIN" ]]; then
-    echo "正在编译休息提醒..."
+    echo "正在编译专注休息..."
     swiftc "$SRC" -O -o "$BIN" -framework AppKit
   fi
 }
@@ -53,7 +53,7 @@ install_login() {
 EOF
   launchctl bootout "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 || true
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
-  echo "已安装开机自启。"
+  echo "已安装开机自启：专注休息。"
   echo "登录后菜单栏会出现咖啡杯图标；点「退出」不会被自动拉起，下次开机仍会启动。"
 }
 
@@ -78,7 +78,7 @@ case "${1:-}" in
     ;;
   --help|-h)
     cat <<'EOF'
-休息提醒
+专注休息
 
   ./start.sh              编译并前台运行
   ./start.sh --now        立刻弹一次，方便看效果
@@ -86,7 +86,7 @@ case "${1:-}" in
   ./start.sh --uninstall  取消开机自启
   ./start.sh --interval 25 --snooze 5
 
-间隔也可以在菜单栏咖啡杯图标里改，会记住你的选择。
+点菜单栏咖啡杯 →「设置有效时段…」可按一周设置几点到几点才计时。
 EOF
     ;;
   *)
