@@ -1,5 +1,6 @@
 import Cocoa
 import CoreGraphics
+import QuartzCore
 
 struct DayWindow: Codable, Equatable {
     var weekday: Int
@@ -21,6 +22,7 @@ struct DayWindow: Codable, Equatable {
     var endLabel: String { Self.label(endMinutes) }
 
     static func label(_ minutes: Int) -> String {
+        if minutes >= 24 * 60 { return "24:00" }
         let clamped = max(0, min(23 * 60 + 59, minutes))
         return String(format: "%02d:%02d", clamped / 60, clamped % 60)
     }
@@ -128,90 +130,82 @@ final class Settings {
     }
 }
 
-struct HealthTip {
-    let tag: String
-    let harm: String
+struct RestTip {
+    let line: String
     let action: String
 }
 
-let healthTips: [HealthTip] = [
-    HealthTip(
-        tag: "眼睛",
-        harm: "盯屏幕时眨眼会明显变少，泪膜容易破，出现干涩、发红、怕光。这是电脑视觉综合征里最常见的一组。",
-        action: "刻意多眨几下眼，再看向 6 米外 20 秒。"
-    ),
-    HealthTip(
-        tag: "眼睛",
-        harm: "近处对焦过久，睫状肌一直绷着，容易视疲劳、发糊、头痛。美国视光协会建议用 20-20-20 护眼。",
-        action: "每 20 分钟，看 20 英尺外（约 6 米）20 秒。"
-    ),
-    HealthTip(
-        tag: "眼睛",
-        harm: "屏幕过高或凑太近，眼睛和脖子会一起出力。电脑视觉综合征里，头痛、颈肩痛也很常见。",
-        action: "把屏幕放到略低于视线，身体坐直，离屏约一臂。"
-    ),
-    HealthTip(
-        tag: "颈椎",
-        harm: "头往前探时，脖子像在扛额外重量。办公室人群里，颈痛是最常报的不适之一。",
-        action: "收回下巴，轻轻左右看看，不要猛转或后甩。"
-    ),
-    HealthTip(
-        tag: "肩颈",
-        harm: "屏幕太高会逼着你仰头，太低又会低头。两种姿势都会让斜方肌和颈椎一直紧张。",
-        action: "屏幕上沿略低于眼睛，双肩放下，不要耸着敲键盘。"
-    ),
-    HealthTip(
-        tag: "腰椎",
-        harm: "坐着时腰椎负担比站着更大，腰背肌长时间绷着，容易酸胀、劳损。",
-        action: "站起来走一圈，把腰伸直，靠椅时让腰有支撑。"
-    ),
-    HealthTip(
-        tag: "循环",
-        harm: "久坐时小腿血液回流变慢，脚容易胀、发麻。把久坐换成任何强度的活动，都有好处。",
-        action: "踮踮脚，或离开座位走两分钟。"
-    ),
-    HealthTip(
-        tag: "代谢",
-        harm: "世卫组织指出：坐得越多，心血管病和 2 型糖尿病风险越高。换成轻度活动也算数。",
-        action: "去倒杯水，顺便活动一下，别在椅子上再续一局。"
-    ),
-    HealthTip(
-        tag: "肩背",
-        harm: "含胸对着屏幕，肩胛和上背会发紧，呼吸也变浅，时间长了肩就抬不下来。",
-        action: "打开肩膀，双手后展，慢慢深吸一口气。"
-    ),
-    HealthTip(
-        tag: "手腕",
-        harm: "鼠标键盘姿势固定过久，手腕和前臂持续紧张，容易酸胀、发麻。",
-        action: "松开鼠标，转转手腕，把手指全部张开再握拢。"
-    ),
-    HealthTip(
-        tag: "髋部",
-        harm: "久坐会让髋屈肌变短变紧，站起来时腰更容易往前顶，走路也发僵。",
-        action: "站起来，脚在后、髋轻轻打开，左右各停几秒。"
-    ),
-    HealthTip(
-        tag: "情绪",
-        harm: "久坐不只伤身子。研究里，坐得久还和情绪低落等风险升高有关，动一动能换状态。",
-        action: "去窗边站一会儿，看看远处，把视线从屏幕上拿开。"
-    ),
+let restTips: [RestTip] = [
+    RestTip(line: "把视线从屏幕上拿开一会儿", action: "看看远处，慢慢眨几下眼"),
+    RestTip(line: "近处看久了，换个焦距会轻松一些", action: "望向窗外，停大约二十秒"),
+    RestTip(line: "肩膀可以放下了，让脖子歇一歇", action: "轻轻左右看看，不必用力"),
+    RestTip(line: "坐直一点，把胸打开，深吸一口气", action: "双手轻轻后展，再慢慢放下"),
+    RestTip(line: "站起来走两步，换个姿势就好", action: "离开座位，走一小圈"),
+    RestTip(line: "松开鼠标，让手指也休息一下", action: "转转手腕，把手张开再合上"),
+    RestTip(line: "忙也没关系，先把气吸满再慢慢吐", action: "闭眼，平稳呼吸三次"),
+    RestTip(line: "去倒杯水，顺便离开屏幕一会儿", action: "站起来，走到窗边待片刻"),
 ]
 
-enum HealthTipPicker {
-    static let lastKey = "rest.lastHealthTip"
+enum RestTipPicker {
+    static let lastKey = "rest.lastRestTip"
 
-    static func next() -> HealthTip {
+    static func next() -> RestTip {
         let last = UserDefaults.standard.integer(forKey: lastKey)
-        var index = Int.random(in: 0..<healthTips.count)
-        if healthTips.count > 1 {
+        var index = Int.random(in: 0..<restTips.count)
+        if restTips.count > 1 {
             var guardCount = 0
             while index == last, guardCount < 8 {
-                index = Int.random(in: 0..<healthTips.count)
+                index = Int.random(in: 0..<restTips.count)
                 guardCount += 1
             }
         }
         UserDefaults.standard.set(index, forKey: lastKey)
-        return healthTips[index]
+        return restTips[index]
+    }
+}
+
+enum Theme {
+    static let accent = NSColor(calibratedRed: 0.93, green: 0.80, blue: 0.55, alpha: 1)
+    static let cream = NSColor(calibratedRed: 0.96, green: 0.94, blue: 0.90, alpha: 1)
+    static let ink = NSColor(calibratedRed: 0.14, green: 0.12, blue: 0.10, alpha: 1)
+    static let dim = NSColor(calibratedRed: 0.05, green: 0.05, blue: 0.06, alpha: 0.52)
+}
+
+final class QuietButton: NSButton {
+    enum Kind { case primary, ghost }
+
+    convenience init(title: String, kind: Kind) {
+        self.init(title: title, target: nil, action: nil)
+        bezelStyle = .inline
+        isBordered = false
+        focusRingType = .none
+        wantsLayer = true
+        layer?.cornerRadius = 18
+        layer?.masksToBounds = true
+        attributedTitle = Self.attributed(title, kind: kind)
+        if kind == .primary {
+            layer?.backgroundColor = Theme.cream.cgColor
+        } else {
+            layer?.backgroundColor = NSColor.white.withAlphaComponent(0.12).cgColor
+            layer?.borderWidth = 1
+            layer?.borderColor = NSColor.white.withAlphaComponent(0.38).cgColor
+        }
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: max(108, super.intrinsicContentSize.width + 28), height: 36)
+    }
+
+    private static func attributed(_ title: String, kind: Kind) -> NSAttributedString {
+        let color: NSColor = kind == .primary ? Theme.ink : NSColor.white
+        return NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 14, weight: .medium),
+            .foregroundColor: color,
+        ])
+    }
+
+    func setQuietTitle(_ title: String, kind: Kind) {
+        attributedTitle = Self.attributed(title, kind: kind)
     }
 }
 
@@ -219,7 +213,7 @@ final class CoffeeView: NSView {
     private var timer: Timer?
     private let born = CFAbsoluteTimeGetCurrent()
 
-    override var intrinsicContentSize: NSSize { NSSize(width: 160, height: 196) }
+    override var intrinsicContentSize: NSSize { NSSize(width: 120, height: 148) }
     override var isOpaque: Bool { false }
 
     override init(frame frameRect: NSRect) {
@@ -247,95 +241,74 @@ final class CoffeeView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let t = CGFloat(CFAbsoluteTimeGetCurrent() - born)
         let cx = bounds.midX
-        drawSteam(time: t, origin: NSPoint(x: cx, y: 108))
+        drawSteam(time: t, origin: NSPoint(x: cx, y: 86))
         drawCup(centerX: cx)
     }
 
     private func drawCup(centerX cx: CGFloat) {
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.18)
-        shadow.shadowBlurRadius = 10
-        shadow.shadowOffset = NSSize(width: 0, height: -2)
-
-        NSGraphicsContext.saveGraphicsState()
-        shadow.set()
-
-        let saucer = NSBezierPath(ovalIn: NSRect(x: cx - 50, y: 14, width: 100, height: 18))
-        NSColor(calibratedRed: 0.93, green: 0.90, blue: 0.85, alpha: 1).setFill()
+        let saucer = NSBezierPath(ovalIn: NSRect(x: cx - 36, y: 16, width: 72, height: 10))
+        NSColor.white.withAlphaComponent(0.14).setFill()
         saucer.fill()
 
         let body = NSBezierPath()
-        body.move(to: NSPoint(x: cx - 34, y: 96))
-        body.line(to: NSPoint(x: cx + 34, y: 96))
-        body.line(to: NSPoint(x: cx + 24, y: 32))
+        body.move(to: NSPoint(x: cx - 24, y: 78))
+        body.line(to: NSPoint(x: cx + 24, y: 78))
+        body.line(to: NSPoint(x: cx + 17, y: 28))
         body.curve(
-            to: NSPoint(x: cx - 24, y: 32),
-            controlPoint1: NSPoint(x: cx + 20, y: 22),
-            controlPoint2: NSPoint(x: cx - 20, y: 22)
+            to: NSPoint(x: cx - 17, y: 28),
+            controlPoint1: NSPoint(x: cx + 14, y: 22),
+            controlPoint2: NSPoint(x: cx - 14, y: 22)
         )
         body.close()
-        NSColor(calibratedRed: 0.98, green: 0.96, blue: 0.93, alpha: 1).setFill()
+        NSColor.white.withAlphaComponent(0.92).setFill()
         body.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        NSColor(calibratedRed: 0.82, green: 0.76, blue: 0.70, alpha: 1).setStroke()
-        body.lineWidth = 1.2
-        body.stroke()
 
         let handle = NSBezierPath()
-        handle.appendOval(in: NSRect(x: cx + 22, y: 48, width: 30, height: 38))
-        let handleHole = NSBezierPath(ovalIn: NSRect(x: cx + 29, y: 56, width: 16, height: 22))
-        handle.append(handleHole)
-        handle.windingRule = .evenOdd
-        NSColor(calibratedRed: 0.98, green: 0.96, blue: 0.93, alpha: 1).setFill()
-        handle.fill()
-        NSColor(calibratedRed: 0.82, green: 0.76, blue: 0.70, alpha: 1).setStroke()
-        handle.lineWidth = 1.2
+        handle.appendArc(
+            withCenter: NSPoint(x: cx + 24, y: 54),
+            radius: 12,
+            startAngle: -55,
+            endAngle: 55
+        )
+        NSColor.white.withAlphaComponent(0.78).setStroke()
+        handle.lineWidth = 2
+        handle.lineCapStyle = .round
         handle.stroke()
 
-        let coffee = NSBezierPath(ovalIn: NSRect(x: cx - 30, y: 82, width: 60, height: 18))
-        NSColor(calibratedRed: 0.27, green: 0.15, blue: 0.07, alpha: 1).setFill()
+        let coffee = NSBezierPath(ovalIn: NSRect(x: cx - 20, y: 68, width: 40, height: 12))
+        NSColor(calibratedRed: 0.22, green: 0.14, blue: 0.09, alpha: 0.92).setFill()
         coffee.fill()
 
-        let shine = NSBezierPath(ovalIn: NSRect(x: cx - 16, y: 90, width: 18, height: 6))
-        NSColor.white.withAlphaComponent(0.16).setFill()
-        shine.fill()
-
-        let rim = NSBezierPath(ovalIn: NSRect(x: cx - 35, y: 90, width: 70, height: 20))
-        NSColor(calibratedRed: 0.90, green: 0.86, blue: 0.80, alpha: 1).setStroke()
-        rim.lineWidth = 3
+        let rim = NSBezierPath(ovalIn: NSRect(x: cx - 25, y: 74, width: 50, height: 12))
+        NSColor.white.withAlphaComponent(0.55).setStroke()
+        rim.lineWidth = 1.2
         rim.stroke()
     }
 
     private func drawSteam(time: CGFloat, origin: NSPoint) {
-        let wisps: [(x: CGFloat, delay: CGFloat, speed: CGFloat, amp: CGFloat, thick: CGFloat)] = [
-            (-11, 0.0, 1.10, 6.5, 2.6),
-            (1, 0.9, 1.38, 8.5, 3.1),
-            (12, 0.45, 1.22, 6.0, 2.3),
+        let wisps: [(x: CGFloat, delay: CGFloat, speed: CGFloat, amp: CGFloat)] = [
+            (-6, 0.0, 0.95, 4.2),
+            (7, 1.1, 1.18, 5.0),
         ]
-
         for wisp in wisps {
-            let steps = 30
-            let height: CGFloat = 68
+            let steps = 24
+            let height: CGFloat = 52
             var points: [NSPoint] = []
             for i in 0...steps {
                 let p = CGFloat(i) / CGFloat(steps)
                 let y = origin.y + p * height
-                let wave = sin((p * 3.4 + time * wisp.speed + wisp.delay) * .pi)
-                let x = origin.x + wisp.x + wave * wisp.amp * (0.3 + p)
-                points.append(NSPoint(x: x, y: y))
+                let wave = sin((p * 2.6 + time * wisp.speed + wisp.delay) * .pi)
+                points.append(NSPoint(x: origin.x + wisp.x + wave * wisp.amp * (0.25 + p), y: y))
             }
-
-            let pulse = 0.7 + 0.3 * sin(time * wisp.speed + wisp.delay)
+            let pulse = 0.55 + 0.25 * sin(time * wisp.speed + wisp.delay)
             for i in 0..<steps {
                 let p = CGFloat(i) / CGFloat(steps)
                 let segment = NSBezierPath()
                 segment.move(to: points[i])
                 segment.line(to: points[i + 1])
                 segment.lineCapStyle = .round
-                segment.lineWidth = wisp.thick * (1 - p * 0.72)
-                let alpha = (0.52 * (1 - p) * pulse)
-                NSColor(calibratedRed: 0.62, green: 0.54, blue: 0.46, alpha: alpha).setStroke()
+                segment.lineWidth = 1.15 * (1 - p * 0.65)
+                NSColor.white.withAlphaComponent(0.42 * (1 - p) * pulse).setStroke()
                 segment.stroke()
             }
         }
@@ -343,45 +316,28 @@ final class CoffeeView: NSView {
 }
 
 final class FactBoxView: NSView {
-    let tagLabel = NSTextField(labelWithString: "")
-    let harmLabel = NSTextField(wrappingLabelWithString: "")
+    let lineLabel = NSTextField(wrappingLabelWithString: "")
     let actionLabel = NSTextField(wrappingLabelWithString: "")
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 14
-        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
 
-        tagLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        tagLabel.textColor = NSColor(calibratedRed: 0.85, green: 0.62, blue: 0.32, alpha: 1)
-        tagLabel.alignment = .left
+        configure(lineLabel, size: 17, weight: .regular, color: .white, lines: 2)
+        configure(actionLabel, size: 14, weight: .medium, color: Theme.accent, lines: 2)
 
-        harmLabel.font = .systemFont(ofSize: 14)
-        harmLabel.textColor = .labelColor
-        harmLabel.maximumNumberOfLines = 4
-        harmLabel.alignment = .left
-
-        actionLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        actionLabel.textColor = NSColor(calibratedRed: 0.93, green: 0.84, blue: 0.68, alpha: 1)
-        actionLabel.maximumNumberOfLines = 2
-        actionLabel.alignment = .left
-
-        let stack = NSStackView(views: [tagLabel, harmLabel, actionLabel])
+        let stack = NSStackView(views: [lineLabel, actionLabel])
         stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 8
-        stack.setCustomSpacing(10, after: harmLabel)
+        stack.alignment = .centerX
+        stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 14),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
-            tagLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            harmLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            lineLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
             actionLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
     }
@@ -390,53 +346,92 @@ final class FactBoxView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func apply(_ tip: HealthTip) {
-        tagLabel.stringValue = tip.tag
-        harmLabel.stringValue = tip.harm
-        actionLabel.stringValue = "现在：\(tip.action)"
+    func apply(_ tip: RestTip) {
+        lineLabel.attributedStringValue = centered(tip.line, size: 17, weight: .regular, color: .white, lineSpacing: 6)
+        actionLabel.attributedStringValue = centered(tip.action, size: 14, weight: .medium, color: Theme.accent, lineSpacing: 3)
+    }
+
+    private func configure(_ field: NSTextField, size: CGFloat, weight: NSFont.Weight, color: NSColor, lines: Int) {
+        field.font = .systemFont(ofSize: size, weight: weight)
+        field.textColor = color
+        field.alignment = .center
+        field.maximumNumberOfLines = lines
+        field.lineBreakMode = .byWordWrapping
+        field.setContentHuggingPriority(.required, for: .vertical)
+    }
+
+    private func centered(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor, lineSpacing: CGFloat) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.alignment = .center
+        style.lineSpacing = lineSpacing
+        style.lineBreakMode = .byWordWrapping
+        return NSAttributedString(string: text, attributes: [
+            .font: NSFont.systemFont(ofSize: size, weight: weight),
+            .foregroundColor: color,
+            .paragraphStyle: style,
+        ])
     }
 }
 
 final class BreakCardView: NSView {
     let coffeeView = CoffeeView(frame: .zero)
-    let titleLabel = NSTextField(labelWithString: "圣上保重龙体")
-    let mottoLabel = NSTextField(labelWithString: "工作娱乐固重要，身体更重要")
+    let titleLabel = NSTextField(labelWithString: "休息一下")
     let timeLabel = NSTextField(labelWithString: "")
     let factBox = FactBoxView(frame: .zero)
-    let restButton = NSButton(title: "已阅", target: nil, action: nil)
-    let snoozeButton = NSButton(title: "再忙片刻", target: nil, action: nil)
+    let restButton = QuietButton(title: "已阅", kind: .primary)
+    let snoozeButton = QuietButton(title: "再忙片刻", kind: .ghost)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        appearance = NSAppearance(named: .darkAqua)
         wantsLayer = true
-        layer?.cornerRadius = 24
-        layer?.masksToBounds = true
+        layer?.cornerRadius = 28
+        layer?.masksToBounds = false
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = 0.28
+        layer?.shadowRadius = 36
+        layer?.shadowOffset = CGSize(width: 0, height: -6)
 
         let blur = NSVisualEffectView()
         blur.material = .hudWindow
         blur.blendingMode = .behindWindow
         blur.state = .active
+        blur.appearance = NSAppearance(named: .darkAqua)
+        blur.wantsLayer = true
+        blur.layer?.cornerRadius = 28
+        blur.layer?.masksToBounds = true
         blur.translatesAutoresizingMaskIntoConstraints = false
         addSubview(blur)
 
-        titleLabel.font = .systemFont(ofSize: 26, weight: .semibold)
+        let veil = NSView()
+        veil.wantsLayer = true
+        veil.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.42).cgColor
+        veil.layer?.cornerRadius = 28
+        veil.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(veil)
+
+        let border = NSView()
+        border.wantsLayer = true
+        border.layer?.cornerRadius = 28
+        border.layer?.borderWidth = 1
+        border.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+        border.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(border)
+
+        titleLabel.font = .systemFont(ofSize: 24, weight: .semibold)
+        titleLabel.textColor = .white
         titleLabel.alignment = .center
+        titleLabel.setContentHuggingPriority(.required, for: .vertical)
 
-        mottoLabel.font = .systemFont(ofSize: 13, weight: .regular)
-        mottoLabel.textColor = .secondaryLabelColor
-        mottoLabel.alignment = .center
-
-        timeLabel.font = .systemFont(ofSize: 12, weight: .medium)
-        timeLabel.textColor = .tertiaryLabelColor
+        timeLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        timeLabel.textColor = NSColor.white.withAlphaComponent(0.55)
         timeLabel.alignment = .center
+        timeLabel.setContentHuggingPriority(.required, for: .vertical)
 
-        restButton.bezelStyle = .rounded
-        restButton.setButtonType(.momentaryPushIn)
         restButton.keyEquivalent = "\r"
-
-        snoozeButton.bezelStyle = .rounded
-        snoozeButton.setButtonType(.momentaryPushIn)
         snoozeButton.keyEquivalent = "\u{1b}"
+
+        let heading = titleLabel
 
         let buttonRow = NSStackView(views: [snoozeButton, restButton])
         buttonRow.orientation = .horizontal
@@ -445,14 +440,15 @@ final class BreakCardView: NSView {
         buttonRow.distribution = .fillEqually
 
         let stack = NSStackView(views: [
-            coffeeView, titleLabel, mottoLabel, timeLabel, factBox, buttonRow
+            coffeeView, heading, timeLabel, factBox, buttonRow
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = 6
-        stack.setCustomSpacing(2, after: coffeeView)
-        stack.setCustomSpacing(10, after: timeLabel)
-        stack.setCustomSpacing(16, after: factBox)
+        stack.spacing = 0
+        stack.setCustomSpacing(8, after: coffeeView)
+        stack.setCustomSpacing(16, after: heading)
+        stack.setCustomSpacing(20, after: timeLabel)
+        stack.setCustomSpacing(28, after: factBox)
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
@@ -461,15 +457,26 @@ final class BreakCardView: NSView {
             blur.trailingAnchor.constraint(equalTo: trailingAnchor),
             blur.topAnchor.constraint(equalTo: topAnchor),
             blur.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 26),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -26),
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 14),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -22),
-            buttonRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            veil.leadingAnchor.constraint(equalTo: leadingAnchor),
+            veil.trailingAnchor.constraint(equalTo: trailingAnchor),
+            veil.topAnchor.constraint(equalTo: topAnchor),
+            veil.bottomAnchor.constraint(equalTo: bottomAnchor),
+            border.leadingAnchor.constraint(equalTo: leadingAnchor),
+            border.trailingAnchor.constraint(equalTo: trailingAnchor),
+            border.topAnchor.constraint(equalTo: topAnchor),
+            border.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 40),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -40),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 28),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -28),
+            heading.widthAnchor.constraint(equalTo: stack.widthAnchor),
             factBox.widthAnchor.constraint(equalTo: stack.widthAnchor),
             timeLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            coffeeView.widthAnchor.constraint(equalToConstant: 160),
-            coffeeView.heightAnchor.constraint(equalToConstant: 176),
+            buttonRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            coffeeView.widthAnchor.constraint(equalToConstant: 108),
+            coffeeView.heightAnchor.constraint(equalToConstant: 128),
+            restButton.heightAnchor.constraint(equalToConstant: 36),
+            snoozeButton.heightAnchor.constraint(equalToConstant: 36),
         ])
     }
 
@@ -478,9 +485,15 @@ final class BreakCardView: NSView {
     }
 
     func apply(workMinutes: Int, snoozeMinutes: Int) {
-        timeLabel.stringValue = "已经连续对着屏幕 \(workMinutes) 分钟了"
-        factBox.apply(HealthTipPicker.next())
-        snoozeButton.title = "再忙 \(snoozeMinutes) 分钟"
+        timeLabel.attributedStringValue = NSAttributedString(
+            string: "连续看屏 \(workMinutes) 分钟",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: NSColor.white.withAlphaComponent(0.55),
+            ]
+        )
+        factBox.apply(RestTipPicker.next())
+        snoozeButton.setQuietTitle("再忙 \(snoozeMinutes) 分钟", kind: .ghost)
     }
 }
 
@@ -502,7 +515,7 @@ final class OverlayController {
                 defer: false
             )
             window.isOpaque = false
-            window.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.08, blue: 0.05, alpha: 0.58)
+            window.backgroundColor = Theme.dim
             window.level = .screenSaver
             window.ignoresMouseEvents = false
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
@@ -522,7 +535,7 @@ final class OverlayController {
                     NSLayoutConstraint.activate([
                         card.centerXAnchor.constraint(equalTo: content.centerXAnchor),
                         card.centerYAnchor.constraint(equalTo: content.centerYAnchor),
-                        card.widthAnchor.constraint(equalToConstant: 460),
+                        card.widthAnchor.constraint(equalToConstant: 380),
                     ])
                 }
                 keyWindow = window
@@ -530,8 +543,18 @@ final class OverlayController {
 
             window.orderFrontRegardless()
             windows.append(window)
+            if screen == NSScreen.main, let cardLayer = window.contentView?.subviews.first?.layer {
+                cardLayer.transform = CATransform3DMakeScale(0.96, 0.96, 1)
+                let scale = CABasicAnimation(keyPath: "transform.scale")
+                scale.fromValue = 0.96
+                scale.toValue = 1
+                scale.duration = 0.38
+                scale.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                cardLayer.add(scale, forKey: "appear")
+                cardLayer.transform = CATransform3DIdentity
+            }
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.22
+                context.duration = 0.32
                 window.animator().alphaValue = 1
             }
         }
@@ -579,10 +602,211 @@ final class OverlayWindow: NSWindow {
     override var canBecomeMain: Bool { true }
 }
 
+final class TimeAxisView: NSView {
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 16) }
+    override var isOpaque: Bool { false }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let pad: CGFloat = 8
+        let inner = bounds.width - pad * 2
+        let labels = [0, 6, 12, 18, 24]
+        for hour in labels {
+            let x = pad + CGFloat(hour) / 24 * inner
+            let text = "\(hour)" as NSString
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 10, weight: .medium),
+                .foregroundColor: NSColor.tertiaryLabelColor,
+            ]
+            let size = text.size(withAttributes: attrs)
+            var drawX = x - size.width / 2
+            drawX = min(max(drawX, 0), bounds.width - size.width)
+            text.draw(at: NSPoint(x: drawX, y: 1), withAttributes: attrs)
+        }
+    }
+}
+
+final class TimeRangeBar: NSView {
+    var startMinutes: Int = 9 * 60 {
+        didSet { needsDisplay = true }
+    }
+    var endMinutes: Int = 22 * 60 {
+        didSet { needsDisplay = true }
+    }
+    var onChange: ((Int, Int) -> Void)?
+
+    private enum DragMode {
+        case none
+        case draw(anchor: Int)
+        case start
+        case end
+        case move(grab: Int)
+    }
+
+    private var drag: DragMode = .none
+    private let pad: CGFloat = 8
+
+    override var isOpaque: Bool { false }
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 28) }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        let clicked = snap(minutes(at: convert(event.locationInWindow, from: nil).x))
+        let startHit = abs(x(for: startMinutes) - convert(event.locationInWindow, from: nil).x) <= 8
+        let endHit = abs(x(for: endMinutes) - convert(event.locationInWindow, from: nil).x) <= 8
+        if startHit {
+            drag = .start
+        } else if endHit {
+            drag = .end
+        } else if containsMinutes(clicked), startMinutes < endMinutes {
+            drag = .move(grab: clicked)
+        } else {
+            drag = .draw(anchor: clicked)
+            startMinutes = clicked
+            endMinutes = min(24 * 60, clicked + 15)
+            emit()
+        }
+
+        var tracking = true
+        while tracking {
+            guard let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) else { break }
+            switch next.type {
+            case .leftMouseDragged:
+                applyDrag(at: snap(minutes(at: convert(next.locationInWindow, from: nil).x)))
+            default:
+                finishDrag(at: snap(minutes(at: convert(next.locationInWindow, from: nil).x)))
+                tracking = false
+            }
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let track = NSRect(x: pad, y: 6, width: bounds.width - pad * 2, height: 16)
+        let trackPath = NSBezierPath(roundedRect: track, xRadius: 8, yRadius: 8)
+        NSColor.labelColor.withAlphaComponent(0.08).setFill()
+        trackPath.fill()
+
+        for hour in stride(from: 0, through: 24, by: 3) {
+            let tickX = x(for: hour * 60)
+            let tick = NSBezierPath()
+            tick.move(to: NSPoint(x: tickX, y: 8))
+            tick.line(to: NSPoint(x: tickX, y: 20))
+            NSColor.labelColor.withAlphaComponent(hour % 6 == 0 ? 0.22 : 0.10).setStroke()
+            tick.lineWidth = 1
+            tick.stroke()
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        trackPath.addClip()
+        NSColor(calibratedRed: 0.78, green: 0.52, blue: 0.24, alpha: 0.92).setFill()
+        if startMinutes == endMinutes {
+            NSRect(x: track.minX, y: track.minY, width: track.width, height: track.height).fill()
+        } else if startMinutes < endMinutes {
+            fillRange(from: startMinutes, to: endMinutes, track: track)
+        } else {
+            fillRange(from: startMinutes, to: 24 * 60, track: track)
+            fillRange(from: 0, to: endMinutes, track: track)
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        drawHandle(at: x(for: startMinutes))
+        drawHandle(at: x(for: endMinutes))
+    }
+
+    private func fillRange(from start: Int, to end: Int, track: NSRect) {
+        let left = x(for: start)
+        let right = x(for: end)
+        NSRect(x: left, y: track.minY, width: max(4, right - left), height: track.height).fill()
+    }
+
+    private func drawHandle(at xPos: CGFloat) {
+        let rect = NSRect(x: xPos - 6, y: 5, width: 12, height: 18)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
+        NSColor.white.setFill()
+        path.fill()
+        NSColor(calibratedRed: 0.62, green: 0.40, blue: 0.18, alpha: 1).setStroke()
+        path.lineWidth = 1.2
+        path.stroke()
+    }
+
+    private func applyDrag(at minutes: Int) {
+        switch drag {
+        case .draw(let anchor):
+            if minutes >= anchor {
+                startMinutes = anchor
+                endMinutes = max(anchor + 15, minutes)
+            } else {
+                startMinutes = minutes
+                endMinutes = max(minutes + 15, anchor)
+            }
+        case .start:
+            startMinutes = min(minutes, max(endMinutes - 15, 0))
+            if startMinutes >= endMinutes { startMinutes = max(0, endMinutes - 15) }
+        case .end:
+            endMinutes = max(minutes, min(startMinutes + 15, 24 * 60))
+            if endMinutes <= startMinutes { endMinutes = min(24 * 60, startMinutes + 15) }
+        case .move(let grab):
+            let duration = max(15, endMinutes - startMinutes)
+            var nextStart = startMinutes + (minutes - grab)
+            nextStart = max(0, min(24 * 60 - duration, nextStart))
+            startMinutes = nextStart
+            endMinutes = nextStart + duration
+            drag = .move(grab: minutes)
+        case .none:
+            break
+        }
+        emit()
+        needsDisplay = true
+    }
+
+    private func finishDrag(at minutes: Int) {
+        applyDrag(at: minutes)
+        if case .draw = drag, endMinutes - startMinutes < 15 {
+            endMinutes = min(24 * 60, startMinutes + 60)
+            emit()
+        }
+        drag = .none
+        needsDisplay = true
+    }
+
+    private func containsMinutes(_ minutes: Int) -> Bool {
+        if startMinutes == endMinutes { return true }
+        if startMinutes < endMinutes {
+            return minutes >= startMinutes && minutes <= endMinutes
+        }
+        return minutes >= startMinutes || minutes <= endMinutes
+    }
+
+    private func x(for minutes: Int) -> CGFloat {
+        pad + CGFloat(minutes) / CGFloat(24 * 60) * (bounds.width - pad * 2)
+    }
+
+    private func minutes(at xPos: CGFloat) -> Int {
+        let inner = max(1, bounds.width - pad * 2)
+        let ratio = (xPos - pad) / inner
+        return Int((min(1, max(0, Double(ratio))) * Double(24 * 60)).rounded())
+    }
+
+    private func snap(_ minutes: Int) -> Int {
+        let stepped = Int((Double(minutes) / 15.0).rounded()) * 15
+        return max(0, min(24 * 60, stepped))
+    }
+
+    private func emit() {
+        onChange?(startMinutes, endMinutes)
+    }
+}
+
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let settings: Settings
     private var window: NSWindow?
     var onChange: (() -> Void)?
+    private var rangeBars: [Int: TimeRangeBar] = [:]
+    private var timeLabels: [Int: NSTextField] = [:]
 
     init(settings: Settings) {
         self.settings = settings
@@ -600,7 +824,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private func buildWindow() -> NSWindow {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 600),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -615,23 +839,25 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.contentView = content
 
         let title = label("专注休息", font: .systemFont(ofSize: 22, weight: .semibold), color: .labelColor)
-        let motto = label("工作娱乐固重要，身体更重要。圣上保重龙体。", font: .systemFont(ofSize: 13), color: .secondaryLabelColor)
-        motto.maximumNumberOfLines = 2
 
         let intervalRow = labeledRow("提醒间隔", control: popup(Settings.intervalChoices.map { "\($0) 分钟" }, select: Int(settings.workMinutes.rounded()), tag: 100, action: #selector(intervalChanged(_:))))
         let snoozeRow = labeledRow("推迟时长", control: popup(Settings.snoozeChoices.map { "\($0) 分钟" }, select: Int(settings.snoozeMinutes.rounded()), tag: 101, action: #selector(snoozeChanged(_:))))
 
         let scheduleTitle = label("有效时段", font: .systemFont(ofSize: 15, weight: .semibold), color: .labelColor)
-        let scheduleHint = label("只有勾选且处于该时段，才会累计专注时间并提醒休息。结束时间早于开始时间，表示跨过午夜。", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
+        let scheduleHint = label("在时间轴上按住拖一下就能选出时段，吸附到 15 分钟。拖两端微调，拖中间可整体平移。", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
         scheduleHint.maximumNumberOfLines = 2
 
         let dayStack = NSStackView()
         dayStack.orientation = .vertical
-        dayStack.spacing = 8
+        dayStack.spacing = 6
         dayStack.alignment = .leading
         dayStack.translatesAutoresizingMaskIntoConstraints = false
+        dayStack.addArrangedSubview(axisRow())
         for weekday in Settings.weekdayOrder {
             dayStack.addArrangedSubview(dayRow(weekday: weekday))
+        }
+        for view in dayStack.arrangedSubviews {
+            view.widthAnchor.constraint(equalTo: dayStack.widthAnchor).isActive = true
         }
 
         let presetRow = NSStackView(views: [
@@ -643,13 +869,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         presetRow.spacing = 8
 
         let stack = NSStackView(views: [
-            title, motto, intervalRow, snoozeRow, scheduleTitle, scheduleHint, dayStack, presetRow
+            title, intervalRow, snoozeRow, scheduleTitle, scheduleHint, dayStack, presetRow
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
-        stack.setCustomSpacing(4, after: title)
-        stack.setCustomSpacing(16, after: motto)
+        stack.setCustomSpacing(16, after: title)
         stack.setCustomSpacing(14, after: snoozeRow)
         stack.setCustomSpacing(4, after: scheduleTitle)
         stack.setCustomSpacing(12, after: scheduleHint)
@@ -664,7 +889,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             intervalRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             snoozeRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             dayStack.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            motto.widthAnchor.constraint(equalTo: stack.widthAnchor),
             scheduleHint.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
 
@@ -703,6 +927,29 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return button
     }
 
+    private func axisRow() -> NSView {
+        let spacer = NSView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+        spacer.widthAnchor.constraint(equalToConstant: 56).isActive = true
+
+        let axis = TimeAxisView()
+        axis.translatesAutoresizingMaskIntoConstraints = false
+        axis.setContentHuggingPriority(.init(1), for: .horizontal)
+        axis.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+
+        let right = NSView()
+        right.translatesAutoresizingMaskIntoConstraints = false
+        right.widthAnchor.constraint(equalToConstant: 78).isActive = true
+
+        let row = NSStackView(views: [spacer, axis, right])
+        row.orientation = .horizontal
+        row.spacing = 10
+        row.alignment = .centerY
+        row.translatesAutoresizingMaskIntoConstraints = false
+        axis.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        return row
+    }
+
     private func dayRow(weekday: Int) -> NSView {
         let item = settings.window(for: weekday)
         let check = NSButton(checkboxWithTitle: Settings.weekdayNames[weekday] ?? "", target: self, action: #selector(dayToggled(_:)))
@@ -710,28 +957,35 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         check.state = item.enabled ? .on : .off
         check.widthAnchor.constraint(equalToConstant: 56).isActive = true
 
-        let start = timePicker(minutes: item.startMinutes, weekday: weekday, isStart: true)
-        let to = label("至", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        let end = timePicker(minutes: item.endMinutes, weekday: weekday, isStart: false)
+        let bar = TimeRangeBar()
+        bar.startMinutes = item.startMinutes
+        bar.endMinutes = item.endMinutes
+        bar.alphaValue = item.enabled ? 1 : 0.4
+        bar.setContentHuggingPriority(.init(1), for: .horizontal)
+        bar.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        bar.onChange = { [weak self] start, end in
+            guard let self else { return }
+            var next = self.settings.window(for: weekday)
+            next.startMinutes = start
+            next.endMinutes = end
+            self.settings.updateDay(next)
+            self.timeLabels[weekday]?.stringValue = "\(DayWindow.label(start))–\(DayWindow.label(end))"
+            self.onChange?()
+        }
+        rangeBars[weekday] = bar
 
-        let row = NSStackView(views: [check, start, to, end])
+        let timeLabel = label("\(item.startLabel)–\(item.endLabel)", font: .monospacedDigitSystemFont(ofSize: 12, weight: .medium), color: .secondaryLabelColor)
+        timeLabel.alignment = .right
+        timeLabel.widthAnchor.constraint(equalToConstant: 78).isActive = true
+        timeLabels[weekday] = timeLabel
+
+        let row = NSStackView(views: [check, bar, timeLabel])
         row.orientation = .horizontal
         row.spacing = 10
         row.alignment = .centerY
         row.identifier = NSUserInterfaceItemIdentifier("day-\(weekday)")
+        bar.heightAnchor.constraint(equalToConstant: 28).isActive = true
         return row
-    }
-
-    private func timePicker(minutes: Int, weekday: Int, isStart: Bool) -> NSDatePicker {
-        let picker = NSDatePicker()
-        picker.datePickerStyle = .textFieldAndStepper
-        picker.datePickerElements = .hourMinute
-        picker.locale = Locale(identifier: "zh_CN")
-        picker.tag = weekday * 10 + (isStart ? 1 : 2)
-        picker.dateValue = date(from: minutes)
-        picker.target = self
-        picker.action = #selector(timeChanged(_:))
-        return picker
     }
 
     private func presetButton(_ title: String, tag: Int) -> NSButton {
@@ -741,28 +995,16 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         return button
     }
 
-    private func date(from minutes: Int) -> Date {
-        Calendar.current.date(from: DateComponents(hour: minutes / 60, minute: minutes % 60)) ?? Date()
-    }
-
-    private func minutes(from date: Date) -> Int {
-        let calendar = Calendar.current
-        return calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date)
-    }
-
     private func reload() {
-        guard let content = window?.contentView else { return }
         for weekday in Settings.weekdayOrder {
             let item = settings.window(for: weekday)
-            if let check = findButton(in: content, tag: weekday) {
+            if let check = window?.contentView.flatMap({ findButton(in: $0, tag: weekday) }) {
                 check.state = item.enabled ? .on : .off
             }
-            if let start = findPicker(in: content, tag: weekday * 10 + 1) {
-                start.dateValue = date(from: item.startMinutes)
-            }
-            if let end = findPicker(in: content, tag: weekday * 10 + 2) {
-                end.dateValue = date(from: item.endMinutes)
-            }
+            rangeBars[weekday]?.startMinutes = item.startMinutes
+            rangeBars[weekday]?.endMinutes = item.endMinutes
+            rangeBars[weekday]?.alphaValue = item.enabled ? 1 : 0.4
+            timeLabels[weekday]?.stringValue = "\(item.startLabel)–\(item.endLabel)"
         }
     }
 
@@ -772,14 +1014,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
         for child in view.subviews {
             if let found = findButton(in: child, tag: tag) { return found }
-        }
-        return nil
-    }
-
-    private func findPicker(in view: NSView, tag: Int) -> NSDatePicker? {
-        if let picker = view as? NSDatePicker, picker.tag == tag { return picker }
-        for child in view.subviews {
-            if let found = findPicker(in: child, tag: tag) { return found }
         }
         return nil
     }
@@ -804,20 +1038,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         var item = settings.window(for: sender.tag)
         item.enabled = sender.state == .on
         settings.updateDay(item)
-        onChange?()
-    }
-
-    @objc private func timeChanged(_ sender: NSDatePicker) {
-        let weekday = sender.tag / 10
-        let isStart = sender.tag % 10 == 1
-        var item = settings.window(for: weekday)
-        let value = minutes(from: sender.dateValue)
-        if isStart {
-            item.startMinutes = value
-        } else {
-            item.endMinutes = value
-        }
-        settings.updateDay(item)
+        rangeBars[sender.tag]?.alphaValue = item.enabled ? 1 : 0.4
         onChange?()
     }
 
